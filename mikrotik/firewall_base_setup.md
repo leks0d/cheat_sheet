@@ -199,13 +199,13 @@ add action=drop chain=forward comment="drop all from LAN to WAN" in-interface=br
 add action=accept chain=input comment="accept establish & related" connection-state=established,related
 add action=drop chain=input comment="drop invalid" connection-state=invalid
 add action=accept chain=input comment="accept ICMP" protocol=icmp
-add action=drop chain=input comment="drop all not from lan" in-interface=!bridge1-lan
+add action=drop chain=input comment="drop all not from lan" in-interface=!bridge1
 add action=accept chain=forward comment="accept established,related" connection-state=established,related
 add action=drop chain=forward comment="drop invalid" connection-state=invalid
-add action=drop chain=forward comment="drop all from WAN to LAN" connection-nat-state=!dstnat connection-state=new in-interface=ether1-wan
-add action=accept chain=forward comment="accept http & https from LAN" dst-port=80,443 in-interface=bridge1-lan out-interface=ether1-wan protocol=tcp
-add action=accept chain=forward comment="accept dns from LAN" dst-port=53 in-interface=bridge1-lan out-interface=ether1-wan protocol=udp
-add action=drop chain=forward comment="drop all from LAN to WAN" in-interface=bridge1-lan out-interface=ether1-wan
+add action=drop chain=forward comment="drop all from WAN to LAN" connection-nat-state=!dstnat connection-state=new in-interface=ether1
+add action=accept chain=forward comment="accept http & https from LAN" dst-port=80,443 in-interface=bridge1 out-interface=ether1 protocol=tcp
+add action=accept chain=forward comment="accept dns from LAN" dst-port=53 in-interface=bridge1 out-interface=ether1 protocol=udp
+add action=drop chain=forward comment="drop all from LAN to WAN" in-interface=bridge1 out-interface=ether1
 ```
 <img src="pics/09.png">
 
@@ -367,17 +367,17 @@ add address=10.20.1.1 list=winbox_remote
 add action=accept chain=input comment="accept establish & related" connection-state=established,related
 add action=drop chain=input comment="drop invalid" connection-state=invalid
 add action=accept chain=input comment="accept ICMP" protocol=icmp
-add action=accept chain=input comment="accept management for white-list" dst-port=8291 in-interface=ether1-wan protocol=tcp src-address-list=winbox_remote
-add action=drop chain=input comment="drop all not from lan" in-interface=!bridge1-lan
+add action=accept chain=input comment="accept management for white-list" dst-port=8291 in-interface=ether1 protocol=tcp src-address-list=winbox_remote
+add action=drop chain=input comment="drop all not from lan" in-interface=!bridge1
 add action=accept chain=forward comment="accept established,related" connection-state=established,related
 add action=drop chain=forward comment="drop invalid" connection-state=invalid
-add action=drop chain=forward comment="drop all from WAN to LAN" connection-nat-state=!dstnat connection-state=new in-interface=ether1-wan
-add action=accept chain=forward comment="accept http & https from LAN" dst-port=80,443 in-interface=bridge1-lan out-interface=ether1-wan protocol=tcp
-add action=accept chain=forward comment="accept dns from lan" dst-port=53 in-interface=bridge1-lan out-interface=ether1-wan protocol=udp
-add action=drop chain=forward comment="drop all from LAN to WAN" in-interface=bridge1-lan out-interface=ether1-wan
+add action=drop chain=forward comment="drop all from WAN to LAN" connection-nat-state=!dstnat connection-state=new in-interface=ether1
+add action=accept chain=forward comment="accept http & https from LAN" dst-port=80,443 in-interface=bridge1 out-interface=ether1 protocol=tcp
+add action=accept chain=forward comment="accept dns from lan" dst-port=53 in-interface=bridge1 out-interface=ether1 protocol=udp
+add action=drop chain=forward comment="drop all from LAN to WAN" in-interface=bridge1 out-interface=ether1
 /ip firewall nat
-add action=masquerade chain=srcnat out-interface=ether1-wan
-add action=dst-nat chain=dstnat dst-port=41221 in-interface=ether1-wan protocol=tcp to-addresses=192.168.88.200 to-ports=3389
+add action=masquerade chain=srcnat out-interface=ether1
+add action=dst-nat chain=dstnat dst-port=41221 in-interface=ether1 protocol=tcp to-addresses=192.168.88.200 to-ports=3389
 ```
 
 [К содержанию](#базовая-настройка-фаервола-в-микротик)
