@@ -3,7 +3,7 @@
 
 [Содержание](#content)
 
-[Введение](#header)
+#header
 Default firewall в Mikrotik
 Firewall и базовая настройка безопасности
 Safe Mode
