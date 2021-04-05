@@ -88,10 +88,8 @@ Safe Mode
 /ip firewall filter
 add action=accept chain=input comment="accept establish & related" connection-state=established,related
 
-#Пример правила для firewall в Mikrotik
 <img src="pics/mikrotik-firewall-nastroyka-02.png">
 
-#Разрешающее правило
 <img src="pics/mikrotik-firewall-nastroyka-03.png">
 
 В дефолтном правиле фаервола сюда же добавлены untracked подключения. Я не стал их добавлять, так как обычно не использую данную возможность. Untracked - это пакеты, не отслеживаемые connection tracker. То есть идущие мимо многих функций фаервола. В конце статьи я отдельно расскажу об этой возможности.
