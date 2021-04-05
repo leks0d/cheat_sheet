@@ -112,6 +112,7 @@ add action=accept chain=input comment="accept establish & related" connection-st
 ```
 <img src="pics/02.png">
 
+
 <img src="pics/03.png">
 
 В дефолтном правиле фаервола сюда же добавлены untracked подключения. Я не стал их добавлять, так как обычно не использую данную возможность. Untracked - это пакеты, не отслеживаемые connection tracker. То есть идущие мимо многих функций фаервола. В конце статьи я отдельно расскажу об этой возможности.
