@@ -2,7 +2,7 @@
 ```
 
 Содержание
-[Введение](#Введение)
+[Введение](#https://github.com/leks0d/cheat_sheet/blob/main/mikrotik/firewall_base_setup.md#%D0%B2%D0%B2%D0%B5%D0%B4%D0%B5%D0%BD%D0%B8%D0%B5)
 Default firewall в Mikrotik
 Firewall и базовая настройка безопасности
 Safe Mode
