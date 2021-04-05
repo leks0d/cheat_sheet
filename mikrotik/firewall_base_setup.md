@@ -72,7 +72,7 @@ Firewall и базовая настройка безопасности
 Safe Mode
 У Mikrotik есть интересное средство в виде Safe Mode, которое позволяет относительно безопасно настраивать Firewall удаленно. Суть его очень простая. Вы включаете этот режим через соответствующую настройку.
 
-<img src="pics/mikrotik-firewall-nastroyka-01.png">
+<img src="pics/01.png">
 
 Далее, если вы некорректно выйдете из этого режима, то все созданные вами настройки будут отменены. Корректным выходом из режима является ручное его отключение через ту же настройку. Таким образом, если во время настройки фаервола у вас пропала связь из-за неверного правила или по какой-то другой причине, Микротик откатит обратно сделанные вами изменения и вы сможете снова подключиться к роутеру.
 
@@ -88,9 +88,9 @@ Safe Mode
 /ip firewall filter
 add action=accept chain=input comment="accept establish & related" connection-state=established,related
 ```
-<img src="pics/mikrotik-firewall-nastroyka-02.png">
+<img src="pics/02.png">
 
-<img src="pics/mikrotik-firewall-nastroyka-03.png">
+<img src="pics/03.png">
 
 В дефолтном правиле фаервола сюда же добавлены untracked подключения. Я не стал их добавлять, так как обычно не использую данную возможность. Untracked - это пакеты, не отслеживаемые connection tracker. То есть идущие мимо многих функций фаервола. В конце статьи я отдельно расскажу об этой возможности.
 
@@ -108,9 +108,9 @@ Output - пакеты, отправленные с маршрутизатора.
 /ip firewall filter
 add action=drop chain=input comment="drop invalid" connection-state=invalid
 ```
-<img src="pics/mikrotik-firewall-nastroyka-04.png">
+<img src="pics/04.png">
 
-<img src="pics/mikrotik-firewall-nastroyka-05.png">
+<img src="pics/05.png">
 
 Дальше не буду приводить скрины, очень хлопотно их под каждое правило делать, да и нет смысла. Просто вставляйте через консоль правила и изучайте их сами в winbox. Разрешаем icmp трафик, чтобы можно было пинговать роутер.
 ```
@@ -122,38 +122,48 @@ add action=accept chain=input comment="accept ICMP" protocol=icmp
 Дальше я обычно разрешаю подключаться к портам, отвечающим за управление роутером (ssh, winbox, https) с доверенных ip адресов. Подробно этот вопрос я рассмотрю отдельно ниже, поэтому пока это правило пропустим.
 
 Создаем заключительное правило для цепочки input, которое будет блокировать все запросы, пришедшие не из локальной сети. В моем примере у меня локальная сеть подключена к бриджу bridge1-lan. В него входят все порты, подключенные в локалку.
+```
+/ip firewall filter
+add action=drop chain=input comment="drop all not from lan" in-interface=!bridge1
+```
+В этом правиле я использовал отрицание !bridge1, то есть все, что не относится к указанному бриджу.
 
-add action=drop chain=input comment="drop all not from lan" in-interface=!bridge1-lan
-В этом правиле я использовал отрицание !bridge1-lan, то есть все, что не относится к указанному бриджу.
-
-Запрет любого входящего трафика, кроме локального
+<img src="pics/06.png">
 
 На текущий момент мы запретили все запросы из вне к роутеру, кроме пингов. При этом доступ из локальной сети полный. Настроим теперь правила для транзитного трафика цепочки forward. Здесь по аналогии с input первыми идут правила для established, related, invalid пакетов.
-
+```
+/ip firewall filter
 add action=accept chain=forward comment="accept established,related" connection-state=established,related
 add action=drop chain=forward comment="drop invalid" connection-state=invalid
-Теперь запретим все запросы из внешней сети, связь с которой через интерфейс ether1-wan к локальной сети.
-
-add action=drop chain=forward comment="drop all from WAN to LAN" connection-nat-state=!dstnat connection-state=new in-interface=ether1-wan
+```
+Теперь запретим все запросы из внешней сети, связь с которой через интерфейс ether1 к локальной сети.
+```
+/ip firewall filter
+add action=drop chain=forward comment="drop all from WAN to LAN" connection-nat-state=!dstnat connection-state=new in-interface=ether1
+```
 Что такое dstnat мы рассмотрим чуть позже, когда будем разбираться с NAT. На этом список базовых правил закончен. Дальше немного пояснений на тему того, что у нас получилось.
 
 Важное замечание, о котором я забыл упомянуть. По умолчанию, в Mikrotik Firewall нормально открытый. Это значит, все, что не запрещено явно, разрешено.
 На текущий момент у нас запрещены все входящие соединения, кроме пинга. При этом разрешены все запросы из локальной сети во внешнюю, так как мы не указали никаких блокирующих правил для этого, а значит, все открыто. Покажу для примера, что нужно сделать, чтобы запретить все запросы из локалки и разрешить, к примеру, только http и https трафик.
 
 Для этого мы сначала создаем разрешающее правило для 80 и 443 портов. Если используете внешний DNS сервер для запросов из сети, не забудьте разрешить еще и 53 порт UDP, иначе dns запросы не будут проходить и страницы загружаться не будут, даже если разрешить http трафик.
-
-add action=accept chain=forward comment="accept http & https from LAN" dst-port=80,443 in-interface=bridge1-lan out-interface=ether1-wan protocol=tcp
-add action=accept chain=forward comment="accept dns from lan" dst-port=53 in-interface=bridge1-lan out-interface=ether1-wan protocol=udp
+```
+/ip firewall filter
+add action=accept chain=forward comment="accept http & https from LAN" dst-port=80,443 in-interface=bridge1 out-interface=ether1 protocol=tcp
+add action=accept chain=forward comment="accept dns from lan" dst-port=53 in-interface=bridge1 out-interface=ether1 protocol=udp
+```
 Разрешил http и dns трафик, так как в моем тестовом окружении используется внешний dns сервер. Теперь блокируем все остальные запросы по цепочке forward из локальной сети.
-
-add action=drop chain=forward comment="drop all from LAN to WAN" in-interface=bridge1-lan out-interface=ether1-wan
+```
+/ip firewall filter
+add action=drop chain=forward comment="drop all from LAN to WAN" in-interface=bridge1 out-interface=ether1
+```
 Когда я писал статью, завис минут на 10 и не мог понять, почему не работает разрешающее правило для http. Я его несколько раз проверил, все верно было. Тут и ошибиться негде, но страницы из интернета не грузились в браузере. Чтобы разобраться, я просто включил логирование для последнего запрещающего правила.
 
-Логирование заблокированных запросов
+<img src="pics/07.png">
 
 После того, как сделал это, увидел, что у меня блокируется dns трафик по 53-му порту. После этого сделал для него разрешение и все заработало как надо.
 
-Лог заблокированных пакетов
+<img src="pics/08.png">
 
 Забыл предупредить. Если вы с нуля настраиваете фаервол в микротик, то доступа в интернет из локальной сети у вас еще нет. Для этого нужно настроить NAT, чем мы займемся в следующем разделе. Так что пока отложите тестирование правил и вернитесь к ним, когда настроите NAT.
 
@@ -162,7 +172,7 @@ add action=drop chain=forward comment="drop all from LAN to WAN" in-interface=br
 Итак, мы настроили базовый нормально закрытый firewall в микротике. У нас запрещено все, что не разрешено явно, в том числе и для трафика из локальной сети. Скажу честно, я редко так делал, потому что хлопотно постоянно что-то открывать из локальной сети (skype, teamviewer и т.д.). В общем случае, если нет повышенных требований безопасности, в этом нет необходимости. Блокирование не разрешенного трафика можно включать в случае необходимости.
 
 Итоговый список правил, которые получились:
-
+```
 /ip firewall filter
 add action=accept chain=input comment="accept establish & related" connection-state=established,related
 add action=drop chain=input comment="drop invalid" connection-state=invalid
@@ -174,7 +184,8 @@ add action=drop chain=forward comment="drop all from WAN to LAN" connection-nat-
 add action=accept chain=forward comment="accept http & https from LAN" dst-port=80,443 in-interface=bridge1-lan out-interface=ether1-wan protocol=tcp
 add action=accept chain=forward comment="accept dns from LAN" dst-port=53 in-interface=bridge1-lan out-interface=ether1-wan protocol=udp
 add action=drop chain=forward comment="drop all from LAN to WAN" in-interface=bridge1-lan out-interface=ether1-wan
-Список всех правил в Mikrotik
+```
+<img src="pics/09.png">
 
 Пока у нас еще не настроен выход в интернет для локальной сети. Сделаем это далее, настроив NAT.
 
@@ -184,59 +195,70 @@ add action=drop chain=forward comment="drop all from LAN to WAN" in-interface=br
 Таким образом, если у вас постоянный ip адрес, то для NAT используйте src-nat, если динамический - masquerade. Разница в настройках минимальна.
 
 Для того, чтобы пользователи локальной сети, которую обслуживает роутер на микротике, смогли получить доступ в интернет, настроим на mikrotik NAT. Для этого идем в раздел IP -> Firewall, вкладка NAT и добавляем простое правило.
-
+```
 /ip firewall nat
 add action=src-nat chain=srcnat out-interface=ether1-wan to-addresses=10.20.1.20
-Настройка NAT в Микротик
+```
+<img src="pics/10.png">
 
-Настройка src-nat
+<img src="pics/11.png">
 
 В данном случае 10.20.1.20 ip адрес на wan интерфейсе. Если не постоянный ip адрес на wan интерфейсе, то делаем с masquerade.
-
+```
+/ip firewall nat
 add action=masquerade chain=srcnat out-interface=ether1-wan
-Включение masquerade
+```
+<img src="pics/12.png">
 
 Все, NAT настроен, пользователи могут выходить в интернет. Теперь предлагаю проверить работу firewall, который мы настроили. Сбросьте все счетчики в правилах.
 
-Проверка работы фаервола
+<img src="pics/13.png">
 
 Теперь сгенерируйте как можно больше трафика и посмотрите, через какие правила он будет идти. Можно воспользоваться сервисом от Яндекса по измерению скорости интернета - https://yandex.ru/internet/.
 
-Статистика обработанных пакетов
+<img src="pics/14.png">
 
 Большая часть трафика прошла по правилу с established, related соединениям, минимально нагружая роутер своей обработкой в контексте именно фаервола. Особенно это будет актуально, если у вас много правил в firewall. Важно их расположить в правильном порядке.
 
 Проброс портов
-Онлайн курс Администратор Linux
+
 Покажу на простом примере, как при настроенном NAT и включенном фаерволе выполнить проброс порта в mikrotik для доступа к службе в локальной сети. Пробросить порт можно в той же вкладке NAT в настройках Firewall.
 
 Для примера выполним проброс порта rdp из интернета через микротик. Извне будет открыт порт 41221, а проброс будет идти на локальный адрес 192.168.88.200 и порт 3389.
-
+```
+/ip firewall nat
 add action=dst-nat chain=dstnat dst-port=41221 in-interface=ether1-wan protocol=tcp to-addresses=192.168.88.200 to-ports=3389
-Проброс порта в Mikrotik
+```
+<img src="pics/15.png">
 
-Настройка dst-nat
+<img src="pics/16.png">
 
 Если у вас остальной фаревол микротика настроен по поему описанию выше, то проброс порта уже заработает и больше ничего делать не надо. Так как у нас правило на блокировку запросов из вне в локальную сеть сделано с учетом исключения цепочки dstnat, все будет работать сразу. Напоминаю это правило.
-
+```
+/ip firewall filter
 add action=drop chain=forward comment="drop all from WAN to LAN" connection-nat-state=!dstnat connection-state=new in-interface=ether1-wan
+```
 Если вы настраивали firewall ранее по каким-то другим материалам, там могло быть другое правило, без учета dstnat, например вот так:
-
+```
+/ip firewall filter
 add action=drop chain=forward comment="drop WAN -> LAN" in-interface=ether1-wan out-interface=bridge1-lan
+```
 К такому правилу надо обязательно выше добавить разрешающее, примерно вот так:
-
+```
+/ip firewall filter
 add action=accept chain=forward comment="accept WAN -> LAN RDP" dst-address=192.168.88.200 dst-port=3389 in-interface=ether1-wan protocol=tcp
+```
 Я настоятельно не рекомендую открывать доступ к rdp порту для всего интернета. Лично имел печальный опыт в такой ситуации. Обязательно настройте ограничение доступа по ip к этому порту, если такое возможно. Если невозможно, то не пробрасывайте порт, а сделайте доступ по vpn. Ограничение по ip делается просто. Добавляем еще один параметр Src. Address в правило проброса порта.
 
-Ограничение доступа по ip к проброшенному порту
+<img src="pics/17.png">
 
 Если используется список ip адресов, который будет меняться, проще сразу в правиле проброса указать на список, а потом править уже сам список. Для этого его надо создать. Создать список ip можно на вкладке Address List. Добавим список:
 
-Создание списка ip в микротик
+<img src="pics/18.png">
 
 Возвращаемся в правило проброса порта, переходим на вкладку Advanced и добавляем указанный список в Src. Adress List
 
-Ограничение доступа по списку ip
+<img src="pics/19.png">
 
 Теперь для изменения списка доступа к проброшенному порту не надо трогать само правило. Достаточно отредактировать список.
 
@@ -249,16 +271,18 @@ add action=accept chain=forward comment="accept WAN -> LAN RDP" dst-address=192.
 
 Тема настройки vpn в mikrotik выходит за рамки данной статьи. Читайте отдельный материла на этот счет. Сделаем простое ограничение доступа к управлению на уровне ip. Для начала создадим список IP адресов, которым будет разрешено подключаться удаленно к winbox.
 
-Защита winbox
+<img src="pics/20.png">
 
 Добавляем правило в Firewall. Оно должно быть выше правила, где блокируются все входящие соединения.
-
+```
+/ip firewall filter
 add action=accept chain=input comment="accept management for white-list" dst-port=8291 in-interface=ether1-wan protocol=tcp src-address-list=winbox_remote
-Ограничение доступа через winbox
+```
+<img src="pics/21.png">
 
 В вкладке Advanced указываем список:
 
-Список ip для подключения по winbox
+<img src="pics/22.png">
 
 В разделе action ставим accept. Так мы обезопасили удаленный доступ через winbox. Считаю это самым простым и безопасным способом защиты микротика. Если есть возможность ограничений по ip, всегда используйте. Это универсальный способ, годный для любого случая и системы, не только в отношении Mikrotik.
 
@@ -266,19 +290,20 @@ add action=accept chain=input comment="accept management for white-list" dst-por
 
 Итоговый список правил после всех наших настроек в этой статье должен получиться примерно таким.
 
-Полный список правил firewall
+<img src="pics/23.png">
 
 Fasttrack
-Онлайн курсы по Микротик
 В дефолтном правиле firewall mikrotik включен режим Fasttrack. Я в своих правилах его обычно не использую. Попробую своими словами объяснить, что это такое. Я долго пытался вникнуть в суть этой технологии, когда разбирался.
 
 Fasttrack - проприетарная технология Mikrotik, позволяющая маркировать ip пакеты для более быстрого прохождения пакетного фильтра. Включить режим маркировки пакетов fasttrack очень просто. Достаточно добавить в цепочку forward первым следующее правило:
-
-/ip firewall filter add action=fasttrack-connection chain=forward comment=fasttrack connection-state=established,related
+```
+/ip firewall filter
+add action=fasttrack-connection chain=forward comment=fasttrack connection-state=established,related
+```
 Дальше остаются все те же самые правила, что я описал ранее в статье.
 
 В этом режиме пакеты перемещаются по упрощенному маршруту в пакетном фильтре, поэтому не работают следующие технологии обработки пакетов:
-
+```
 firewall filter;
 mangle rules;
 queues с parrent=global;
@@ -286,11 +311,12 @@ IP accounting;
 IPSec;
 hotspot universal client;
 VRF;
+```
 За счет того, что маршрут обработки пакетов более короткий, он меньше нагружает процессор в ущерб функционалу. Если вы ничего из перечисленного не используете, то можно пользоваться fasttrack. Однако, чаще всего нужны queues, поэтому от него приходится отказываться. Если же у вас не используются очереди и какие-то особенные правила в firewall, то можете использовать технологию.
 
 Чтобы убедиться, что режим fasttrack работает, можно посмотреть раздел Mangle. Счетчик с маркированными пакетами должен расти.
 
-Fasttrack mangle
+<img src="pics/24.png">
 
 И в завершении по fasttrack важное замечание - он не работает в CHR. Я с этим столкнулся лично, когда тестировал. У меня тестовое окружение настроено на CHR и там fasttrack не работал. Причем его можно включить, но все счетчики пакетов будут нулевыми. Реально технология не работает.
 
@@ -299,10 +325,10 @@ Fasttrack mangle
 
 Вот пример отключенного фаервола на микротике :)
 
-Отключение firewall на mikrotik
+<img src="pics/25.png">
 
 Итоговый список правил, настроенный по этой статье, получился вот такой:
-
+```
 /ip firewall address-list
 add address=10.20.1.1 list=winbox_remote
 /ip firewall filter
@@ -320,8 +346,8 @@ add action=drop chain=forward comment="drop all from LAN to WAN" in-interface=br
 /ip firewall nat
 add action=masquerade chain=srcnat out-interface=ether1-wan
 add action=dst-nat chain=dstnat dst-port=41221 in-interface=ether1-wan protocol=tcp to-addresses=192.168.88.200 to-ports=3389
+```
 Заключение
-Онлайн курс Администратор Linux
 Не понравилась статья и хочешь научить меня администрировать? Пожалуйста, я люблю учиться. Комментарии в твоем распоряжении. Расскажи, как сделать правильно!
 На этом все по базовой настройке firewall на mikrotik. Постарался показать максимально подробно базовый набор правил фаервола для обеспечения безопасности и защиты локальной сети и самого роутера.
 
