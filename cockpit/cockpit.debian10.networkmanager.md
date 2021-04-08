@@ -1,4 +1,5 @@
-Установка cockpit и настройка NetworkManager
+**Установка cockpit и настройка NetworkManager**
+
 ```
 apt -y install cockpit
 systemctl enable cockpit.socket
@@ -8,13 +9,10 @@ systemctl start cockpit.socket
 ```
 nano /etc/network/interfaces
 ```
-`/etc/network/interfaces` не должен содержать ничего
+`/etc/network/interfaces` не должен содержать ничего.
 
+`nano /etc/NetworkManager/NetworkManager.conf` содержит: 
 
-`/etc/NetworkManager/NetworkManager.conf` содержит:
-```
-nano /etc/NetworkManager/NetworkManager.conf
-```
 ```
 [main]
 plugins=ifupdown,keyfile
